@@ -7,6 +7,12 @@
 
 import SwiftUI
 
+struct Pet: Identifiable, Codable {
+    var id = UUID()
+    var name: String
+    var breed: String
+    var age: String
+}
 struct ContentView: View {
     @State private var selectedTab = 0
     
@@ -156,6 +162,9 @@ struct HomeView: View {
 }
 
 struct PetsView: View {
+    @AppStorage("savedPets") private var savedPetsData: Data = Data()
+    @State private var pets: [Pet] = []
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -169,43 +178,108 @@ struct PetsView: View {
                     Text("Manage your pet profiles here")
                         .foregroundColor(.secondary)
                     
+                    NavigationLink(destination: AddPetView(pets: $pets, savePets: savePets)) {
+                        Label("Add New Pet", systemImage: "plus.circle.fill")
+                            .font(.headline)
+                            .foregroundColor(.orange)
+                            .padding()
+                    }
                     ScrollView {
                         VStack(spacing: 16) {
-                            ForEach(0..<3) { index in
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color(.systemBackground))
-                                    .frame(height: 100)
-                                    .overlay(
-                                        HStack{
-                                            Circle()
-                                                .fill(Color.orange.opacity(0.3))
-                                                .frame(width:60, height:60)
-                                                .overlay(
-                                                    Image(systemName: "pawprint.fill")
-                                                        .foregroundColor(.orange)
-                                                )
-                                            VStack(alignment: .leading) {
-                                                Text("Pet Name \(index + 1)")
-                                                    .font(.headline)
-                                                Text("Breed • Age")
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
+                            ForEach(pets) { pet in
+                                NavigationLink(destination: PetDetailView(pet: Pet(id: pet.id, name: pet.name, breed: pet.breed, age: pet.age))) {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color(.systemBackground))
+                                        .frame(height: 100)
+                                        .overlay(
+                                            HStack{
+                                                Circle()
+                                                    .fill(Color.orange.opacity(0.3))
+                                                    .frame(width:60, height:60)
+                                                    .overlay(
+                                                        Image(systemName: "pawprint.fill")
+                                                            .foregroundColor(.orange)
+                                                    )
+                                                VStack(alignment: .leading) {
+                                                    Text(pet.name)
+                                                        .font(.headline)
+                                                    Text("\(pet.breed) • \(pet.age)")
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                                Spacer()
                                             }
-                                            Spacer()
-                                        }
-                                        .padding()
-                                    )
-                                    .shadow(color: .black.opacity(0.05), radius:5)
-                                
+                                                .padding()
+                                        )
+                                        .shadow(color: .black.opacity(0.05), radius:5)
+                                }
+                                // Delete button
+                                Button(action: {
+                                    deletePet(pet: pet)
+                                }) {
+                                    Image(systemName: "trash.fill")
+                                        .foregroundColor(Color(.red))
+                                        .padding(.leading, 8)
+                                }
                             }
-                        
+                            .padding(.horizontal)
+                            
                         }
                         .padding()
                     }
                 }
             }
             .navigationBarHidden(true)
+            .onAppear { loadPets() }
         }
+    }
+    
+    private func deletePet(pet: Pet) {
+        if let index = pets.firstIndex(where: { $0.id == pet.id }) {
+            pets.remove(at: index)
+            savePets()
+        }
+    }
+    
+    private func loadPets() {
+        if let decoded = try? JSONDecoder().decode([Pet].self, from: savedPetsData) {
+            pets = decoded
+        }
+    }
+    
+    private func savePets() {
+        if let encoded = try? JSONEncoder().encode(pets) {
+            savedPetsData = encoded
+        }
+    }
+    
+}
+
+struct AddPetView: View {
+    @Environment(\.dismiss) var dismiss
+    @Binding var pets: [Pet]
+    var savePets: () -> Void
+    
+    @State private var petName: String = ""
+    @State private var breed: String = ""
+    @State private var age: String = ""
+    
+    var body: some View {
+        Form {
+            Section(header: Text("New Pet")) {
+                TextField("Name", text: $petName)
+                TextField("Breed", text: $breed)
+                TextField("Age", text: $age)
+            }
+            
+            Button("Save") {
+                let newPet = Pet(name: petName, breed: breed, age: age)
+                pets.append(newPet)
+                savePets()
+                dismiss()
+            }
+        }
+        .navigationTitle("Add New Pet")
     }
 }
 
@@ -334,6 +408,51 @@ struct MoreView: View {
             }
             .navigationBarHidden(true)
         }
+    }
+}
+
+struct PetDetailView: View {
+    let pet: Pet
+    var body: some View {
+        VStack(spacing: 20) {
+            Circle()
+                .fill(Color.orange.opacity(0.3))
+                .frame(width: 100, height: 100)
+                .overlay(
+                    Image(systemName: "pawprint.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.orange)
+                )
+            Text(pet.name)
+                .font(.largeTitle)
+                .bold()
+                        
+            Text("\(pet.breed) • \(pet.age)")
+                .foregroundColor(.secondary)
+                .font(.title3)
+                        
+            Divider().padding(.vertical)
+                        
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Health Records")
+                    .font(.headline)
+                Text("Track vet visits, medications, and reminders here.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                            
+                Text("Gallery")
+                    .font(.headline)
+                Text("Photos and memories of \(pet.name).")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+            Spacer()
+        }
+        .padding()
+        .navigationTitle(pet.name)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
