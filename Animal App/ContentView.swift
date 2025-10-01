@@ -1,10 +1,3 @@
-//
-//  ContentView.swift
-//  Animal App
-//
-//  Created by Andrea Maples on 9/22/25.
-//
-
 import SwiftUI
 
 struct ContentView: View {
@@ -119,38 +112,294 @@ struct TabBarButton: View {
 }
 
 struct HomeView: View {
+    @State private var showLogin = false
+    @State private var showSignUp = false
+    
     var body: some View {
         NavigationView {
             ZStack {
                 Color(.systemGray6).ignoresSafeArea()
                 
                 ScrollView{
-                    VStack(spacing: 20) {
-                        Text("Home Screen")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                            .foregroundColor(.primary)
-                        ForEach(0..<3) { index in
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.systemBackground))
-                                .frame(height: 120)
-                                .overlay(
-                                    VStack {
-                                        Text("Feature Card \(index+1)")
-                                            .font(.headline)
-                                        Text("This would show pet overview")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                )
-                                .shadow(color: .black.opacity(0.05), radius: 5)
-                                
+                    VStack(spacing: 24) {
+                        VStack(spacing: 16) {
+                            Text("FurEver Care")
+                                .font(.largeTitle)
+                                .fontWeight(.bold)
+                                .foregroundColor(.primary)
+                            Text("Your complete pet care companion")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
                         }
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        
+                        // Feature Cards...
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Discover our Awesome Features")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .padding(.horizontal)
+                            
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                                FeatureCardWithPhoto(
+                                    imageName: "dog_profile",
+                                    title: "Pet Profiles",
+                                    description: "Manage all your pets in one place!",
+                                    color: .orange
+                                )
+                                
+                                FeatureCardWithPhoto(
+                                    imageName: "dog_vet",
+                                    title: "Health Tracking",
+                                    description: "Vet visits, medications,  & more!",
+                                    color: .red
+                                )
+                                FeatureCardWithPhoto(
+                                    imageName: "dog_camera",
+                                    title: "Photo Gallery",
+                                    description: "Store precious memories of your furry friend",
+                                    color: .purple
+                                )
+                                FeatureCardWithPhoto(
+                                    imageName: "dog_reminder",
+                                    title: "Reminders",
+                                    description: "Never miss important dates!",
+                                    color: .blue
+                                )
+                            }
+                            .padding(.horizontal)
+                        }
+                        
+                        //Spacer(minLength: 0)
+                        
+                        // Sign up / login button at the bottom...
+                        VStack(spacing: 12) {
+                            Text("Ready to begin your pet care journey?")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                                .multilineTextAlignment(.center)
+                            
+                            Button("Create Your Profile") {
+                                showSignUp = true
+                            }
+                            .buttonStyle(ProminentButtonStyle())
+                            
+                            HStack(spacing: 4) {
+                                Text("Already have an account?")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                Button("Log In") {
+                                    showLogin = true
+                                }
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.orange)
+                            }
+//                            Button("Already have an account? Log In!") {
+//                                showLogin = true
+//                            }
+//                            .font(.subheadline)
+//                            .foregroundColor(.blue)
+                            
+                        }
+                        .padding(16)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.orange.opacity(0.1))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                                )
+                        )
+                        .padding(.horizontal)
+                        .padding(.bottom, 2)
                     }
-                    .padding()
+                    .padding(.vertical, 12)
                 }
             }
             .navigationBarHidden(true)
+            .sheet(isPresented: $showLogin) {
+                LoginView()
+            }
+            .sheet(isPresented: $showSignUp) {
+                SignUpView()
+            }
+        }
+    }
+}
+
+struct ProminentButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundColor(.white)
+            .padding(.horizontal, 32)
+            .padding(.vertical, 16)
+            .frame(maxWidth: .infinity)
+            .background(
+                LinearGradient(
+                    colors: [.orange, .orange.opacity(0.8)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(12)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .shadow(color: .orange.opacity(0.3), radius: 8, x: 0, y:4)
+    }
+}
+
+struct FeatureCardWithPhoto: View {
+    let imageName: String
+    let title: String
+    let description: String
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Image(imageName)
+                .resizable()
+                .scaledToFill()
+//                .aspectRatio(1.2, contentMode: .fill)
+                .frame(height: 100)
+                .clipped()
+                .overlay(
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.3)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .overlay(
+                    Image(systemName: getFeatureIcon())
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .padding(6)
+                        .background(color)
+                        .clipShape(Circle())
+                        .padding(8),
+                    alignment: .topTrailing
+                )
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Text(description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+            }
+            .padding(12)
+        }
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.05), radius: 5)
+    }
+    
+    private func getFeatureIcon() -> String {
+        switch title {
+        case "Pet Profiles": return "pawprint.fill"
+        case "Health Tracking": return "heart.fill"
+        case "Photo Gallery": return "camera.fill"
+        case "Reminders": return "bell.fill"
+        default: return "star.fill"
+        }
+    }
+}
+
+struct AuthButtonStyle: ButtonStyle {
+    let backgroundColor: Color
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundColor(.white)
+            .padding(.horizontal, 24)
+            .background(backgroundColor)
+            .cornerRadius(8)
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+    }
+}
+
+struct LoginView: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                Text("Login Screen")
+                    .font(.title)
+                    .padding()
+                
+                VStack(spacing: 16) {
+                    TextField("Email", text: .constant(""))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                    
+                    SecureField("Password", text: .constant(""))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                    
+                    Button("Log In") {
+                        // Login logic goes here
+                        dismiss()
+                    }
+                    .buttonStyle(AuthButtonStyle(backgroundColor: .orange))
+                }
+                .padding()
+                
+                Spacer()
+                
+                Button("Close") {
+                    dismiss()
+                }
+                .foregroundColor(.gray)
+            }
+            .padding()
+            .navigationTitle("Log In")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+}
+
+struct SignUpView: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                Text("Sign Up Screen")
+                    .font(.title)
+                    .padding()
+                
+                VStack(spacing: 16) {
+                    TextField("Full Name", text: .constant(""))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                    TextField("Email", text: .constant(""))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                    SecureField("Password", text: .constant(""))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                    SecureField("Confirm Password", text: .constant(""))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                    
+                    Button("Create Account") {
+                        // Sign up logic goes here...
+                        dismiss()
+                    }
+                    .buttonStyle(AuthButtonStyle(backgroundColor: .blue))
+                }
+                .padding()
+                Spacer()
+                
+                Button("Close") {
+                    dismiss()
+                }
+                .foregroundColor(.gray)
+            }
+            .padding()
+            .navigationTitle("Sign Up")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
@@ -256,33 +505,47 @@ struct HealthView: View {
                     
                     Text("Track your pet's health records")
                         .foregroundColor(.secondary)
+                    Spacer(minLength: 50)
+                    
                     
                     ScrollView {
-                        VStack(spacing: 16) {
-                            ForEach(0..<5) { index in
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color(.systemBackground))
-                                    .frame(height: 80)
-                                    .overlay(
-                                        HStack {
-                                            Image(systemName: ["heart.fill", "stethoscope", "pills.fill", "clock.fill", "chart.bar.fill"][index])
-                                                .foregroundColor(.orange)
-                                                .font(.title2)
-                                            VStack(alignment: .leading) {
-                                                Text(["Vet Visits", "Medications", "Vaccinations", "Reminders", "Progress"][index])
-                                                    .font(.headline)
-                                                Text("Track and manage here")
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
-                                            }
-                                            Spacer()
-                                        }
-                                        .padding()
-                                    )
-                                    .shadow(color: .black.opacity(0.05), radius:5)
-                            }
+                        VStack(spacing: 35) {
+// Vet Visit Button ------------------------------------------------------
+                            Button {
+                                } label: {
+                                    Image(systemName: "heart.fill").resizable().frame(width:20, height:20).foregroundColor(.orange)
+                                    Text("Vet Visit").frame(maxWidth: .infinity).frame(maxHeight: 60)
+                                    Text("Track and Manage Here").font(.caption).foregroundColor(.secondary)
+                            }.buttonStyle(.bordered).buttonBorderShape(.roundedRectangle(radius: 12)).controlSize(.large).font(.headline).tint(.gray).foregroundColor(.black)
+// Medications Button ----------------------------------------------------
+                            Button {
+                                } label: {
+                                    Image(systemName: "stethoscope").resizable().frame(width:30, height:30).foregroundColor(.orange)
+                                    Text("Medications").frame(maxWidth: .infinity).frame(height: 40)
+                                    Text("Track and Manage Here").font(.caption).foregroundColor(.secondary)
+                            }.buttonStyle(.bordered).buttonBorderShape(.roundedRectangle(radius: 12)).font(.headline).tint(.gray).foregroundColor(.black)
+// Vaccinations Button ---------------------------------------------------
+                            Button {
+                                } label: {
+                                    Image(systemName: "pills.fill").resizable().frame(width:20, height:20).foregroundColor(.orange)
+                                    Text("Vaccinations").frame(maxWidth: .infinity).frame(maxHeight: 60)
+                                    Text("Track and Manage Here").font(.caption).foregroundColor(.secondary)
+                            }.buttonStyle(.bordered).buttonBorderShape(.roundedRectangle(radius: 12)).controlSize(.large).font(.headline).tint(.gray).foregroundColor(.black)
+// Reminders Button ------------------------------------------------------
+                            Button {
+                                } label: {
+                                    Image(systemName: "clock.fill").resizable().frame(width:20, height:20).foregroundColor(.orange)
+                                    Text("Reminders").frame(maxWidth: .infinity).frame(maxHeight: 60)
+                                    Text("Track and Manage Here").font(.caption).foregroundColor(.secondary)
+                            }.buttonStyle(.bordered).buttonBorderShape(.roundedRectangle(radius: 12)).controlSize(.large).font(.headline).tint(.gray).foregroundColor(.black)
+// Progess Button -------------------------------------------------------
+                            Button {
+                                } label: {
+                                    Image(systemName: "chart.bar.fill").resizable().frame(width:20, height:20).foregroundColor(.orange)
+                                    Text("Progress").frame(maxWidth: .infinity).frame(maxHeight: 60)
+                                    Text("Track and Manage Here").font(.caption).foregroundColor(.secondary)
+                                }.buttonStyle(.bordered).buttonBorderShape(.roundedRectangle(radius: 12)).controlSize(.large).font(.headline).tint(.gray).foregroundColor(.black)
                         }
-                        .padding()
                     }
                 }
             }
