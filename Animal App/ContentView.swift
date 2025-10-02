@@ -533,12 +533,17 @@ struct AddPetView: View {
 }
 
 struct GalleryView: View {
+    @State var showPicker = false
+    @State var selectedImage: [UIImage] = [] // array of multiple images
+    private let columns = [GridItem(.adaptive(minimum: 110), spacing: 8)]
+    
     var body: some View {
         NavigationView {
             ZStack {
                 Color(.systemGray6).ignoresSafeArea()
                 
                 VStack {
+                    
                     Text("Photo Gallery")
                         .font(.largeTitle)
                         .fontWeight(.bold)
@@ -547,21 +552,49 @@ struct GalleryView: View {
                         .foregroundColor(.secondary)
                     
                     ScrollView {
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 2) {
-                            ForEach(0..<15) { index in
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.3))
-                                    .aspectRatio(1, contentMode: .fill)
+                        LazyVGrid(columns: columns, spacing: 8) {
+                            ForEach(selectedImage.indices, id: \.self) { index in
+                                Color.clear
+                                    .aspectRatio(1, contentMode: .fit)
                                     .overlay(
-                                        Image(systemName: "photo")
-                                            .foregroundColor(.gray)
+                                        Image(uiImage: selectedImage[index])
+                                            .resizable()
+                                            .scaledToFill()
                                     )
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    //.background(Color.gray.opacity(0.15))
+                                
+                            }
+                            // Rectangular Button:
+                            Button{
+                                showPicker = true
+                            } label: {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.gray.opacity(0.15))
+                                        .aspectRatio(1, contentMode: .fit)
+                                    VStack(spacing: 6) {
+                                        Image(systemName: "plus.circle.fill")
+                                            .font(.title)
+                                            .foregroundColor(.orange)
+                                        Text("Add Photo")
+                                            .font(.caption)
+                                            .foregroundColor(.primary)
+                                    }
+                                }
                             }
                         }
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
                     }
                 }
             }
             .navigationBarHidden(true)
+            .sheet(isPresented: $showPicker) {
+                ImagePicker { img in
+                    if let img { selectedImage.append(img) }
+                }
+            }
         }
     }
 }
@@ -660,7 +693,7 @@ struct MoreView: View {
                                             Image(systemName: "chevron.right")
                                                 .foregroundColor(.gray)
                                         }
-                                        .padding()
+                                            .padding()
                                     )
                                     .shadow(color: .black.opacity(0.05), radius: 5)
                             }
