@@ -55,7 +55,7 @@ struct ContentView: View {
                 PetsView().tag(1)
                 GalleryView().tag(2)
                 HealthView().tag(3)
-                MoreView().tag(4)
+                NotificationsView().tag(4)
             }
             VStack {
                 Spacer()
@@ -112,8 +112,8 @@ struct CustomTabBar: View {
             }
             
             TabBarButton(
-                icon: "ellipsis.circle.fill",
-                label: "More",
+                icon: "bell.fill",
+                label: "Reminders",
                 isSelected: selectedTab == 4
             ) {
                 selectedTab = 4
@@ -1503,52 +1503,6 @@ struct HealthButton: View {
         .font(.headline)
         .tint(.gray)
         .foregroundColor(.black)
-    }
-}
-
-struct MoreView: View {
-    var body: some View {
-        NavigationView {
-            ZStack {
-                Color(.systemGray6).ignoresSafeArea()
-                
-                VStack {
-                    Text("More")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                    
-                    Text("Settings and additional features")
-                        .foregroundColor(.secondary)
-                    
-                    ScrollView {
-                        VStack(spacing: 12) {
-                            ForEach(0..<6) { index in
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color(.systemBackground))
-                                    .frame(height: 60)
-                                    .overlay(
-                                        HStack {
-                                            Image(systemName: ["gear", "bell.fill", "questionmark.circle", "info.circle", "person.fill", "square.and.arrow.up"][index])
-                                                .foregroundColor(.orange)
-                                                .font(.title3)
-                                            Text(["Settings", "Notifications","Help", "About", "Account", "Share"][index])
-                                                .font(.headline)
-                                            Spacer()
-                                            
-                                            Image(systemName: "chevron.right")
-                                                .foregroundColor(.gray)
-                                        }
-                                        .padding()
-                                    )
-                                    .shadow(color: .black.opacity(0.05), radius: 5)
-                            }
-                        }
-                        .padding()
-                    }
-                }
-            }
-            .navigationBarHidden(true)
-        }
     }
 }
 
