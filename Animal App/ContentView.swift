@@ -52,7 +52,7 @@ struct ContentView: View {
             TabView(selection: $selectedTab) {
                 HomeView(selectedTab: $selectedTab)
                     .tag(0)
-                PetsView().tag(1)
+                PetsView(selectedTab: $selectedTab).tag(1)
                 GalleryView().tag(2)
                 HealthView().tag(3)
                 NotificationsView().tag(4)
@@ -429,6 +429,7 @@ struct AuthButtonStyle: ButtonStyle {
 //}
 
 struct PetsView: View {
+    @Binding var selectedTab: Int
     @AppStorage("savedPets") private var savedPetsData: Data = Data()
     @AppStorage("selectedPetId") private var selectedPetId: String = ""
     @State private var pets: [Pet] = []
@@ -474,7 +475,8 @@ struct PetsView: View {
                         PetsListView(
                             pets: $pets,
                             selectedPetId: $selectedPetId,
-                            showingAddPet: $showingAddPet,
+                            showingAddPet: $showingAddPet, selectedTab:
+                                $selectedTab,
                             onDeletePet: deletePet
                         )
                     }
@@ -605,6 +607,7 @@ struct PetsListView: View {
     @Binding var pets: [Pet]
     @Binding var selectedPetId: String
     @Binding var showingAddPet: Bool
+    @Binding var selectedTab: Int
     let onDeletePet: (Pet) -> Void
     
     @State private var petToDelete: Pet?
@@ -619,6 +622,7 @@ struct PetsListView: View {
                         isSelected: pet.id.uuidString == selectedPetId,
                         onSelect: {
                             selectedPetId = pet.id.uuidString
+                            selectedTab = 3 // switch to health tab
                         },
                         pets: $pets,
                         onDelete: {
