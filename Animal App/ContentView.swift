@@ -1395,31 +1395,12 @@ struct HealthView: View {
                                      .foregroundColor(.black)
     // Vactinations Button ---------------------------------------------------
                                 NavigationLink {
-                                        Vactination()
+                                        VaccinationsView()
                                     } label: {
                                         Image(systemName: "pills.fill")
                                             .resizable().frame(width:20, height:20)
                                             .foregroundColor(.orange)
-                                        Text("Vactinations")
-                                            .frame(maxWidth: .infinity)
-                                            .frame(maxHeight: 60)
-                                        Text("Track and Manage Here")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }.buttonStyle(.bordered)
-                                     .buttonBorderShape(.roundedRectangle(radius: 12))
-                                     .controlSize(.large)
-                                     .font(.headline)
-                                     .tint(.gray)
-                                     .foregroundColor(.black)
-    // Reminders Button ------------------------------------------------------
-                                NavigationLink {
-                                        Reminders()
-                                    } label: {
-                                        Image(systemName: "clock.fill")
-                                            .resizable().frame(width:20, height:20)
-                                            .foregroundColor(.orange)
-                                        Text("Reminders")
+                                        Text("Vaccinations")
                                             .frame(maxWidth: .infinity)
                                             .frame(maxHeight: 60)
                                         Text("Track and Manage Here")

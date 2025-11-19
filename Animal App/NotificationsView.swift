@@ -4,15 +4,39 @@ import UserNotifications
 struct ScheduledNotifications: Identifiable, Codable {
     let id: String
     let title: String
-    let time: Date
+    let date: Date
+    let recurrence: Recurrence
+}
+
+enum Recurrence: String, CaseIterable, Codable {
+    case once = "Once"
+    case daily = "Daily"
+    case weekly = "Weekly"
+    case monthly = "Monthly"
+    case yearly = "Yearly"
+}
+
+class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, ObservableObject {
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound, .badge])
+    }
 }
 
 struct NotificationsView: View {
-    @State private var scheduledNotifications: [ScheduledNotification] = []
+    @State private var scheduledNotifications: [ScheduledNotifications] = []
     @State private var notificationTitle = ""
     @State private var selectedDate = Date()
+    @State private var selectedRecurrence: Recurrence = .daily
     @State private var permissionGranted = false
     @State private var showingPermissionAlert = false
+    @StateObject private var notificationDelegate = NotificationDelegate()
+    
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
     
     var body: some View {
         NavigationView {
@@ -39,6 +63,7 @@ struct NotificationsView: View {
             }
             .navigationBarHidden(true)
             .onAppear {
+                UNUserNotificationCenter.current().delegate = notificationDelegate
                 checkPermission()
                 loadScheduledNotifications()
             }
@@ -62,20 +87,23 @@ struct NotificationsView: View {
                 // new notif card
                 GroupBox {
                     VStack(alignment: .leading, spacing: 16) {
-                        //                        HStack {
-                        //                            Image(systemName: "plus.circle.fill")
-                        //                                .foregroundColor(.orange)
-                        //                                .font(.title3)
-                        //                            Text("Create New Reminder")
-                        //                                .font(.headline)
-                        //
-                        //                            Spacer()
-                        //                        }
-                        
+                        Text("Create New Reminder")
+                            .font(.headline)
                         TextField("Reminder title...", text: $notificationTitle)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                        DatePicker("Time", selection: $selectedDate, displayedComponents: .hourAndMinute)
+                        DatePicker("Date & Time", selection: $selectedDate, in: Date()...)
                             .datePickerStyle(CompactDatePickerStyle())
+                        
+                        HStack {
+                            Text("Repeat")
+                            Spacer()
+                            Picker("Recurrence", selection: $selectedRecurrence) {
+                                ForEach(Recurrence.allCases, id: \.self) { recurrence in
+                                    Text(recurrence.rawValue).tag(recurrence)
+                                }
+                            }
+                            .pickerStyle(MenuPickerStyle())
+                        }
                         Button(action: scheduleNotification) {
                             HStack {
                                 Image(systemName: "bell.fill")
@@ -93,11 +121,6 @@ struct NotificationsView: View {
                     }
                     .padding(.vertical, 8)
                 }
-//                } label: {
-//                    Label("New Reminder", systemImage: "plus.circle.fill")
-//                }
-                
-                // scheduled notifs
                 if scheduledNotifications.isEmpty {
                     EmptyNotificationsView()
                 } else {
@@ -122,7 +145,7 @@ struct NotificationsView: View {
                             
                             LazyVStack(spacing: 12) {
                                 ForEach(scheduledNotifications) { notification in
-                                    NotificationRow(
+                                    EnhancedNotificationRow(
                                         notification: notification,
                                         onDelete: removeNotification
                                     )
@@ -132,9 +155,6 @@ struct NotificationsView: View {
                         }
                         .padding(.vertical, 8)
                     }
-//                    label: {
-//                        Label("Your Reminders", systemImage: "bell.fill")
-//                    }
                 }
             }
             .padding()
@@ -172,31 +192,66 @@ struct NotificationsView: View {
         content.body = "Time to care for your pet. 🐶"
         content.sound = .default
         
-        // triggered by time (will repeat daily)
-        let components = Calendar.current.dateComponents([.hour, .minute], from: selectedDate)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
         let identifier = UUID().uuidString
+        let trigger = createTrigger(for: selectedDate, recurrence: selectedRecurrence)
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                print("Error scheduling notification: \(error)")
+                print("Error scheduling notification: \(error.localizedDescription)")
             } else {
+                print("Notification scheduled for \(selectedDate)")
                 DispatchQueue.main.async {
-                    let newNotification = ScheduledNotification(
+                    let newNotification = ScheduledNotifications(
                         id: identifier,
                         title: trimmedTitle,
-                        time: selectedDate
+                        date: selectedDate,
+                        recurrence: selectedRecurrence
                     )
                     scheduledNotifications.append(newNotification)
                     saveNotifications()
                     notificationTitle = ""
-                    selectedDate = Date() // reset time to the current time...
+                    selectedDate = Date().addingTimeInterval(3600) // defaults to 1 hour from current time.
+                    selectedRecurrence = .daily
                 }
             }
         }
     }
     
-    func removeNotification(_ notification: ScheduledNotification) {
+    private func createTrigger(for date: Date, recurrence: Recurrence) -> UNNotificationTrigger? {
+        let calendar = Calendar.current
+        let components: DateComponents
+        
+        switch recurrence {
+        case .once:
+            // one-time notifs use an exact date
+            if date <= Date() {
+                // if the date is in the past, make it 5 seconds from now so that we can test to see if the notifs are working.
+                return UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
+            }
+            components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+            return UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            
+        case .daily:
+            components = calendar.dateComponents([.hour, .minute], from: date)
+            return UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+            
+        case .weekly:
+            components = calendar.dateComponents([.weekday, .hour, .minute], from: date)
+            return UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+            
+        case .monthly:
+            components = calendar.dateComponents([.day, .hour, .minute], from: date)
+            return UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+            
+        case .yearly:
+            components = calendar.dateComponents([.month, .day, .hour, .minute], from: date)
+            return UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+        }
+    }
+
+    
+    func removeNotification(_ notification: ScheduledNotifications) {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notification.id])
         scheduledNotifications.removeAll { $0.id == notification.id }
         saveNotifications()
@@ -210,17 +265,86 @@ struct NotificationsView: View {
     
     func loadScheduledNotifications() {
         if let data = UserDefaults.standard.data(forKey: "scheduledNotifications"),
-           let decoded = try? JSONDecoder().decode([ScheduledNotification].self, from: data) {
+           let decoded = try? JSONDecoder().decode([ScheduledNotifications].self, from: data) {
             scheduledNotifications = decoded
         }
     }
 }
 
-// data model
-struct ScheduledNotification: Identifiable, Codable {
-    let id: String
-    let title: String
-    let time: Date
+struct EnhancedNotificationRow: View {
+    let notification: ScheduledNotifications
+    let onDelete: (ScheduledNotifications) -> Void
+    
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
+    
+    private func getOrdinalSuffix(for number: Int) -> String {
+        switch number {
+        case 1, 21, 31: return "st"
+        case 2, 22: return "nd"
+        case 3, 23: return "rd"
+        default: return "th"
+        }
+    }
+    
+    private func recurrenceText(for recurrence: Recurrence, date: Date) -> String {
+        switch recurrence {
+        case .once:
+            return "Once on \(dateFormatter.string(from: date))"
+        case .daily:
+            return "Daily at \(timeString(from: date))"
+        case .weekly:
+            let weekday = Calendar.current.component(.weekday, from: date)
+            let weekdayName = Calendar.current.weekdaySymbols[weekday - 1]
+            return "Weekly on \(weekdayName)s at \(timeString(from: date))"
+        case .monthly:
+            let day = Calendar.current.component(.day, from: date)
+            let ordinal = getOrdinalSuffix(for: day)
+            return "Monthly on the \(day)\(ordinal) at \(timeString(from: date))"
+        case .yearly:
+            let month = Calendar.current.component(.month, from: date)
+            let day = Calendar.current.component(.day, from: date)
+            let monthName = Calendar.current.monthSymbols[month - 1]
+            let ordinal = getOrdinalSuffix(for: day)
+            return "Yearly on \(monthName) \(day)\(ordinal) at \(timeString(from: date))"
+        }
+    }
+    
+    private func timeString(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(notification.title)
+                    .font(.body)
+                    .fontWeight(.medium)
+                Text(recurrenceText(for: notification.recurrence, date: notification.date))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+            Button(action: { onDelete(notification)}) {
+                Image(systemName: "trash")
+                    .foregroundColor(.red)
+                    .font(.caption)
+                    .padding(8)
+                    .background(Color.red.opacity(0.1))
+                    .cornerRadius(6)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(10)
+        .shadow(color: .black.opacity(0.05), radius: 2)
+    }
 }
 
 // supporting views
@@ -265,44 +389,6 @@ struct PermissionView: View {
             Spacer()
         }
         .padding()
-    }
-}
-
-struct NotificationRow: View {
-    let notification: ScheduledNotification
-    let onDelete: (ScheduledNotification) -> Void
-    
-    private let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter
-    }()
-    
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(notification.title)
-                    .font(.body)
-                    .fontWeight(.medium)
-                Text("Daily at \(timeFormatter.string(from: notification.time))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            Spacer()
-            
-            Button(action: { onDelete(notification)}) {
-                Image(systemName: "trash")
-                    .foregroundColor(.red)
-                    .font(.caption)
-                    .padding(8)
-                    .background(Color.red.opacity(0.1))
-                    .cornerRadius(6)
-            }
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(10)
-        .shadow(color: .black.opacity(0.05), radius: 2)
     }
 }
 
