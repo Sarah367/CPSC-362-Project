@@ -185,26 +185,30 @@ struct HomeView: View {
                                     imageName: "dog_profile",
                                     title: "Pet Profiles",
                                     description: "Manage all your pets in one place!",
-                                    color: .orange
+                                    color: .orange,
+                                    onTap: {selectedTab = 1}
                                 )
                                 
                                 FeatureCardWithPhoto(
                                     imageName: "dog_vet",
                                     title: "Health Tracking",
                                     description: "Vet visits, medications,  & more!",
-                                    color: .red
+                                    color: .red,
+                                    onTap: {selectedTab = 3}
                                 )
                                 FeatureCardWithPhoto(
                                     imageName: "dog_camera",
                                     title: "Photo Gallery",
                                     description: "Store precious memories of your furry friend",
-                                    color: .purple
+                                    color: .purple,
+                                    onTap: {selectedTab = 2}
                                 )
                                 FeatureCardWithPhoto(
                                     imageName: "dog_reminder",
                                     title: "Reminders",
                                     description: "Never miss important dates!",
-                                    color: .blue
+                                    color: .blue,
+                                    onTap: {selectedTab = 4}
                                 )
                             }
                             .padding(.horizontal)
@@ -273,6 +277,7 @@ struct FeatureCardWithPhoto: View {
     let title: String
     let description: String
     let color: Color
+    let onTap: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -309,6 +314,7 @@ struct FeatureCardWithPhoto: View {
             }
             .padding(12)
         }
+        .onTapGesture { onTap() }
         .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.05), radius: 5)
@@ -439,6 +445,7 @@ struct PetsView: View {
     @State private var newPetName = ""
     @State private var newPetBreed = ""
     @State private var newPetAge = ""
+    @State private var editingPet: Pet? = nil
     
     var selectedPet: Pet? {
         pets.first { $0.id.uuidString == selectedPetId }
@@ -477,7 +484,10 @@ struct PetsView: View {
                             selectedPetId: $selectedPetId,
                             showingAddPet: $showingAddPet, selectedTab:
                                 $selectedTab,
-                            onDeletePet: deletePet
+                            onDeletePet: deletePet,
+                            onEditPet: { pet in
+                                editingPet = pet
+                            }
                         )
                     }
                     Button(action: {showingAddPet=true}) {
@@ -509,6 +519,15 @@ struct PetsView: View {
                         resetNewPetFields()
                     }
                 )
+            }
+            .sheet(item: $editingPet) { pet in
+                EditPetView(pet: pet) { updatedPet in
+                    if let index = pets.firstIndex(where: {$0.id == updatedPet.id}) {
+                        pets[index] = updatedPet
+                        savePets()
+                    }
+                    editingPet = nil
+                }
             }
 //            .sheet(isPresented: $showingImagePicker) {
 //                ImagePicker { image in
@@ -581,6 +600,38 @@ struct PetsView: View {
     }
 }
 
+struct EditPetView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State var pet: Pet
+    var onSave: (Pet) -> Void
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Edit Pet Info")) {
+                    TextField("Name", text: $pet.name)
+                    TextField("Breed", text: $pet.breed)
+                    TextField("Age", text: $pet.age)
+                }
+            }
+            .navigationTitle("Edit \(pet.name)")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        onSave(pet)
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct EmptyPetsView: View {
     @Binding var showingAddPet: Bool
     
@@ -609,6 +660,7 @@ struct PetsListView: View {
     @Binding var showingAddPet: Bool
     @Binding var selectedTab: Int
     let onDeletePet: (Pet) -> Void
+    let onEditPet: (Pet) -> Void
     
     @State private var petToDelete: Pet?
     @State private var showDeleteAlert = false
@@ -628,6 +680,9 @@ struct PetsListView: View {
                         onDelete: {
                             petToDelete = pet
                             showDeleteAlert = true
+                        },
+                        onEdit: {
+                            onEditPet(pet)
                         }
                     )
                     .contextMenu {
@@ -676,6 +731,7 @@ struct PetProfileCard: View {
     @State private var showingDeleteAlert = false
     @Binding var pets: [Pet]
     let onDelete: (() -> Void)?
+    let onEdit: (() -> Void)?
     
     var body: some View {
         ZStack(alignment: .trailing) {
@@ -741,7 +797,15 @@ struct PetProfileCard: View {
                     )
             }
             .buttonStyle(.plain)
-            
+            Button(action: {
+                onEdit?()
+            }) {
+                Image(systemName: "pencil.circle.fill")
+                    .font(.title3)
+                    .foregroundColor(.blue)
+            }
+            .buttonStyle(.plain)
+            .offset(x: -10, y: -30)
             Button(action: {
                 onDelete?()
             }) {
@@ -1419,7 +1483,7 @@ struct HealthView: View {
                                         Image(systemName: "chart.bar.fill")
                                             .resizable().frame(width:20, height:20)
                                             .foregroundColor(.orange)
-                                        Text("Progress")
+                                        Text("Weight Tracker")
                                             .frame(maxWidth: .infinity)
                                             .frame(maxHeight: 60)
                                         Text("Track and Manage Here")

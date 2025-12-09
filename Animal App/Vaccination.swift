@@ -2,6 +2,7 @@ import SwiftUI
 
 struct VaccinationRecord: Identifiable, Codable {
     let id: UUID
+    let petID: UUID
     var vaccineName: String
     var dateAdministered: Date
     var nextDueDate: Date?
@@ -13,6 +14,10 @@ struct VaccinationsView: View {
     @State private var vaccinationRecords: [VaccinationRecord] = []
     @State private var showingAddVaccination = false
     @State private var showingEditVaccination: VaccinationRecord? = nil
+    
+    @AppStorage("selectedPetId") private var selectedPetId: String = ""
+    @AppStorage("savedPets") private var savedPetsData: Data = Data()
+    @State private var selectedPet: Pet?
     
     let commonVaccines = [
         "Rabies", "DHPP (Distemper)", "Bordetella (Kennel Cough)",
@@ -57,16 +62,26 @@ struct VaccinationsView: View {
                 }
             )
             .sheet(isPresented: $showingAddVaccination) {
-                AddEditVaccinationView(onSave: addVaccination)
+                AddEditVaccinationView(
+                    vaccinationRecord: nil,
+                    selectedPet: selectedPet,
+                    onSave: addVaccination
+                )
             }
             .sheet(item: $showingEditVaccination) { record in
-                AddEditVaccinationView(vaccinationRecord: record, onSave: updateVaccination)
+                AddEditVaccinationView(vaccinationRecord: record, selectedPet: selectedPet, onSave: updateVaccination)
             }
             .onAppear {
+                loadSelectedPet()
+                loadVaccinationRecords()
+            }
+            .onChange(of: selectedPetId) { _ in
+                loadSelectedPet()
                 loadVaccinationRecords()
             }
         }
     }
+    
     
     private var VaccinationListView: some View {
         ScrollView {
@@ -154,21 +169,45 @@ struct VaccinationsView: View {
         saveVaccinationRecords()
     }
     func saveVaccinationRecords() {
-        if let encoded = try? JSONEncoder().encode(vaccinationRecords) {
+        var allRecords: [VaccinationRecord] = []
+        
+        if let data = UserDefaults.standard.data(forKey: "vaccinationRecords"),
+           let decoded = try? JSONDecoder().decode([VaccinationRecord].self, from: data) {
+            allRecords = decoded
+        }
+        
+        if let pet = selectedPet {
+            allRecords.removeAll{$0.petID == pet.id}
+        }
+        allRecords.append(contentsOf: vaccinationRecords)
+        if let encoded = try? JSONEncoder().encode(allRecords) {
             UserDefaults.standard.set(encoded, forKey: "vaccinationRecords")
         }
     }
-    func loadVaccinationRecords() {
-        if let data = UserDefaults.standard.data(forKey: "vaccinationRecords"),
-           let decoded = try? JSONDecoder().decode([VaccinationRecord].self, from: data) {
-            vaccinationRecords = decoded
+    
+    func loadSelectedPet() {
+        if let decoded = try? JSONDecoder().decode([Pet].self, from: savedPetsData) {
+            selectedPet = decoded.first {$0.id.uuidString == selectedPetId}
         }
     }
+    func loadVaccinationRecords() {
+        guard let data = UserDefaults.standard.data(forKey: "vaccinationRecords"),
+              let decoded = try? JSONDecoder().decode([VaccinationRecord].self, from: data)
+        else {return}
+        guard let pet = selectedPet else {
+            vaccinationRecords = []
+            return
+        }
+        vaccinationRecords = decoded.filter {$0.petID == pet.id}
+    }
 }
+
 
 struct AddEditVaccinationView: View {
     @Environment(\.dismiss) private var dismiss
     let onSave: (VaccinationRecord) -> Void
+    let selectedPet: Pet?
+    @State private var recordID: UUID
     
     @State private var vaccineName: String
     @State private var dateAdministered: Date
@@ -182,10 +221,11 @@ struct AddEditVaccinationView: View {
         "Leptospirosis", "Lyme Disease", "Canine Influenza",
         "Parvovirus", "Coronavirus"
     ]
-    init(vaccinationRecord: VaccinationRecord? = nil, onSave: @escaping (VaccinationRecord) -> Void) {
+    init(vaccinationRecord: VaccinationRecord? = nil, selectedPet: Pet?, onSave: @escaping (VaccinationRecord) -> Void) {
         self.onSave = onSave
-        
+        self.selectedPet = selectedPet
         if let record = vaccinationRecord {
+            _recordID = State(initialValue: record.id)
             _vaccineName = State(initialValue: record.vaccineName)
             _dateAdministered = State(initialValue: record.dateAdministered)
             _nextDueDate = State(initialValue: record.nextDueDate)
@@ -193,6 +233,7 @@ struct AddEditVaccinationView: View {
             _notes = State(initialValue: record.notes)
             _showNextDueDate = State(initialValue: record.nextDueDate != nil)
         } else {
+            _recordID = State(initialValue: UUID())
             _vaccineName = State(initialValue: "")
             _dateAdministered = State(initialValue: Date())
             _nextDueDate = State(initialValue: Date().addingTimeInterval(365*24*3600))
@@ -249,7 +290,8 @@ struct AddEditVaccinationView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         let record = VaccinationRecord(
-                            id: UUID(),
+                            id: recordID,
+                            petID: selectedPet?.id ?? UUID(),
                             vaccineName: vaccineName,
                             dateAdministered: dateAdministered,
                             nextDueDate: showNextDueDate ? nextDueDate : nil,
@@ -309,6 +351,12 @@ struct VaccinationRow: View {
                 }
                 if !record.administeredBy.isEmpty {
                     Text("By: \(record.administeredBy)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                if !record.notes.isEmpty {
+                    Text("Notes: \(record.notes)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

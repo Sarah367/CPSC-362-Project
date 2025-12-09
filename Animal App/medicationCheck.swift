@@ -7,8 +7,18 @@
 
 import SwiftUI
 
-struct UserInfo: Identifiable, Codable {
+//struct UserInfo: Identifiable, Codable {
+//    let id: UUID
+//    var name: String
+//    var breed: String
+//    var age: Double
+//    var medication: String
+//    var duration: String
+//}
+
+struct MedicationItem: Identifiable, Codable {
     let id: UUID
+    let petID: UUID
     var name: String
     var breed: String
     var age: Double
@@ -17,7 +27,7 @@ struct UserInfo: Identifiable, Codable {
 }
 
 struct MedicationCheck: View {
-    @State private var users: [UserInfo] = []
+    @State private var medications: [MedicationItem] = []
     
     @State private var newName = ""
     @State private var newBreed = ""
@@ -26,7 +36,10 @@ struct MedicationCheck: View {
     @State private var newDuration = ""
     
     // For editing
-    @State private var editingUser: UserInfo? = nil
+    @State private var editingMed: MedicationItem? = nil
+    @AppStorage("selectedPetId") private var selectedPetId: String = ""
+    @AppStorage("savedPets") private var savedPetsData: Data = Data()
+    @State private var selectedPet: Pet?
 
     private let numberFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
@@ -36,9 +49,6 @@ struct MedicationCheck: View {
     
     var body: some View {
         VStack {
-            // ==========================
-            // ADD NEW USER
-            // ==========================
             Text("Medications")
                 .font(.largeTitle)
                 .fontWeight(.bold)
@@ -47,6 +57,11 @@ struct MedicationCheck: View {
             Text("Check and Update your Pet's Medication")
                 .font(.title2)
             
+            if selectedPet == nil {
+                Text("Please select a pet from the Pets tab.")
+                    .foregroundColor(.red)
+                    .padding()
+            }
             HStack {
                 TextField("Name", text: $newName)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -61,8 +76,8 @@ struct MedicationCheck: View {
             TextField("Duration", text: $newDuration)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
             
-            Button("+ Add Pet") {
-                handleUser(action: "add", user: nil)
+            Button("+ Add Medication") {
+                addMedication()
             }
             .buttonStyle(.borderedProminent)
             .font(.title3)
@@ -71,38 +86,29 @@ struct MedicationCheck: View {
             Divider()
                 .padding(.vertical)
             
-            // ==========================
-            // DISPLAY EXISTING USERS
-            // ==========================
             ScrollView {
-                ForEach(users) { user in
+                ForEach(medications) { med in
                     GroupBox {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Pet Information")
+                            Text("Pet Medication")
                                 .font(.headline)
                             
-                            Text("Name: \(user.name)")
-                            Text("Breed: \(user.breed)")
-                            Text("Age: \(user.age, specifier: "%.0f")")
-                            Text("Medication: \(user.medication)")
-                            Text("Duration: \(user.duration)")
+                            Text("Name: \(med.name)")
+                            Text("Breed: \(med.breed)")
+                            Text("Age: \(med.age, specifier: "%.0f")")
+                            Text("Medication: \(med.medication)")
+                            Text("Duration: \(med.duration)")
                             
                             HStack {
                                 Button("Edit") {
-                                    editingUser = user
+                                    editingMed = med
                                 }
-                                .buttonStyle(.bordered)
-                                
                                 Button("Delete", role: .destructive) {
-                                    handleUser(action: "delete", user: user)
+                                    deleteMedication(med)
                                 }
-                                .buttonStyle(.bordered)
                             }
-                            .padding(.top, 6)
                         }
                         .padding(.vertical, 5)
-                    } label: {
-                        Label("Animal Details", systemImage: "pawprint.fill")
                     }
                     .padding(.horizontal)
                 }
@@ -110,118 +116,97 @@ struct MedicationCheck: View {
         }
         .padding()
         .onAppear {
-            loadUsers()
+            loadSelectedPet()
+            loadMedications()
         }
-        // ✅ Proper sheet presentation with both save & cancel actions
-        .sheet(item: $editingUser) { userToEdit in
-            EditUserView(user: userToEdit) { updatedUser in
-                handleUser(action: "update", user: updatedUser)
-                editingUser = nil
-            } onCancel: {
-                editingUser = nil
+        .onChange (of: selectedPetId) { _ in
+            loadSelectedPet()
+            loadMedications()
+        }
+        .sheet(item: $editingMed) { med in
+            EditMedicationView(med: med) { updated in
+                updateMedication(updated)
             }
         }
     }
     
-    // =============================
-    //  UNIFIED FUNCTION
-    // =============================
-    func handleUser(action: String, user: UserInfo?) {
-        switch action {
-        case "add":
-            guard !newName.isEmpty,
-                  !newBreed.isEmpty,
-                  !newMedication.isEmpty,
-                  !newDuration.isEmpty,
-                  newAge > 0 else { return }
-            
-            let newUser = UserInfo(
-                id: UUID(),
-                name: newName,
-                breed: newBreed,
-                age: newAge,
-                medication: newMedication,
-                duration: newDuration
-            )
-            users.append(newUser)
-            saveUsers()
-            
-            // Clear fields
-            newName = ""
-            newBreed = ""
-            newAge = 0.0
-            newMedication = ""
-            newDuration = ""
-            
-        case "update":
-            guard let user = user,
-                  let index = users.firstIndex(where: { $0.id == user.id }) else { return }
-            users[index] = user
-            saveUsers()
-            
-        case "delete":
-            guard let user = user else { return }
-            users.removeAll { $0.id == user.id }
-            saveUsers()
-            
-        default:
-            break
-        }
+    func addMedication() {
+        guard let pet = selectedPet else {return}
+        
+        let item = MedicationItem(
+            id: UUID(),
+            petID: pet.id,
+            name: newName,
+            breed: newBreed,
+            age: newAge,
+            medication: newMedication,
+            duration: newDuration
+        )
+        medications.append(item)
+        saveMedications()
+        
+        newName = ""
+        newBreed = ""
+        newAge = 0
+        newMedication = ""
+        newDuration = ""
     }
     
-    // =============================
-    //  SAVE & LOAD
-    // =============================
-    func saveUsers() {
-        if let encoded = try? JSONEncoder().encode(users) {
-            UserDefaults.standard.set(encoded, forKey: "savedUsers")
+    func updateMedication(_ med: MedicationItem) {
+        if let index = medications.firstIndex(where: {$0.id == med.id}) {
+            medications[index] = med
+            saveMedications()
         }
     }
 
-    func loadUsers() {
-        if let data = UserDefaults.standard.data(forKey: "savedUsers"),
-           let decoded = try? JSONDecoder().decode([UserInfo].self, from: data) {
-            users = decoded
+    func deleteMedication(_ med: MedicationItem) {
+        medications.removeAll {$0.id == med.id}
+        saveMedications()
+    }
+    
+    func loadMedications() {
+        guard let data = UserDefaults.standard.data(forKey: "medications"),
+              let decoded = try? JSONDecoder().decode([MedicationItem].self, from: data)
+        else {return}
+        guard let pet = selectedPet else {
+            medications = []
+            return
+        }
+        medications = decoded.filter {$0.petID == pet.id}
+    }
+    
+    func saveMedications() {
+        if let encoded = try? JSONEncoder().encode(medications) { UserDefaults.standard.set(encoded, forKey:"medications") }
+    }
+    
+    func loadSelectedPet() {
+        if let decoded = try? JSONDecoder().decode([Pet].self, from:savedPetsData) {
+            selectedPet=decoded.first {$0.id.uuidString == selectedPetId}
         }
     }
 }
 
-// =============================
-// EDIT SHEET VIEW
-// =============================
-struct EditUserView: View {
-    @State var user: UserInfo
-    var onSave: (UserInfo) -> Void
-    var onCancel: () -> Void
+struct EditMedicationView: View {
+    @State var med: MedicationItem
+    var onSave: (MedicationItem) -> Void
     
-    private let numberFormatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .none
-        return formatter
-    }()
+    private let numberFormatter = NumberFormatter()
     
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Edit Pet Info")) {
-                    TextField("Name", text: $user.name)
-                    TextField("Breed", text: $user.breed)
-                    TextField("Age", value: $user.age, formatter: numberFormatter)
-                    TextField("Medication", text: $user.medication)
-                    TextField("Duration", text: $user.duration)
-                }
+                TextField("Name", text: $med.name)
+                TextField("Breed", text: $med.breed)
+                TextField("Age", value: $med.age, formatter: numberFormatter)
+                TextField("Medication", text: $med.medication)
+                TextField("Duration", text: $med.duration)
             }
-            .navigationTitle("Edit Pet")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        onCancel()
-                    }
-                }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        onSave(user)
-                    }
+                    Button("Save") {onSave(med)}
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {}
                 }
             }
         }

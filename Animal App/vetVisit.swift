@@ -11,6 +11,9 @@ struct VetVisit: View {
     @State private var selectedDate: Date? = nil
     @State private var newTask: String = ""
     @State private var tasksByDate: [String: [String]] = [:] // Use String for easy storage (formatted date)
+    @State private var taskBeingEdited: String = ""
+    @State private var editingIndex: Int? = nil
+    @State private var showEditSheet = false
     
     private let defaultsKey = "tasksByDate" // key to save in UserDefaults
     
@@ -55,8 +58,18 @@ struct VetVisit: View {
                 
                 List {
                     Section(header: Text("Scheduled Tasks")) {
-                        ForEach(tasksByDate[dateKey] ?? [], id: \.self) { task in
-                            Text(task)
+                        ForEach(Array((tasksByDate[dateKey] ?? []).enumerated()), id: \.offset) { index, task in
+                            Button(action: {
+                                taskBeingEdited = task
+                                editingIndex = index
+                                showEditSheet = true
+                            }) {
+                                Text(task)
+                                    .foregroundColor(.primary)
+                            }
+                        }
+                        .onDelete { indexSet in
+                            deleteTask(at: indexSet, for: dateKey)
                         }
                     }
                 }
@@ -67,7 +80,38 @@ struct VetVisit: View {
                     .padding()
             }
         }
-        .onAppear(perform: loadTasks) // load when the view appears
+        .onAppear {
+            loadTasks()
+            if selectedDate == nil {
+                selectedDate = Date()
+            }
+        }
+        .sheet(isPresented: $showEditSheet) {
+            NavigationView {
+                Form {
+                    TextField("Edit Task", text: $taskBeingEdited)
+                }
+                .navigationTitle("Edit Task")
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            if let idx = editingIndex,
+                               let date = selectedDate {
+                                let key = formatDate(date)
+                                tasksByDate[key]?[idx] = taskBeingEdited
+                                saveTasks()
+                            }
+                            showEditSheet = false
+                        }
+                    }
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            showEditSheet = false
+                        }
+                    }
+                }
+            }
+        }
     }
     
     // MARK: - Functions
@@ -84,6 +128,11 @@ struct VetVisit: View {
 
         saveTasks()
         newTask = "" // clear input
+    }
+    
+    func deleteTask(at offsets: IndexSet, for dateKey: String) {
+        tasksByDate[dateKey]?.remove(atOffsets: offsets)
+        saveTasks()
     }
     
     func formatDate(_ date: Date) -> String {

@@ -48,7 +48,7 @@ struct NotificationsView: View {
                         .font(.largeTitle)
                         .fontWeight(.bold)
                     
-                    Text("Never forget your pet's care tasks")
+                    Text("Never forget your pet care tasks!")
                         .foregroundColor(.secondary)
                     
                     if !permissionGranted {
