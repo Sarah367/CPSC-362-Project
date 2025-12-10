@@ -1,0 +1,2 @@
+# 🐾 FurEver Care - IOS Mobile Application
+FurEver Care is an iOS app designed to assist pet owners in monitoring and organizing every facet of their pet’s care. Users can set up comprehensive profiles for their pets, keep a gallery for photos, record health details like veterinary visits, medications, and vaccinations, and monitor weight fluctuations over time. Additionally, the app features a reminder system for upcoming health-related tasks and appointments.
