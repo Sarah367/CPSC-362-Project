@@ -91,3 +91,16 @@ FurEver Care is an iOS app designed to assist pet owners in monitoring and organ
 └── Resources/
     ├── Assets.xcassets
     └── Preview Content/
+```
+## But How Do I Run The App?
+### 1. Clone the git repository.
+- Clone this repo by typing "git clone https://github.com/Sarah367/CPSC-362-Project.git"
+### 2. Make sure you have Xcode installed.
+- Here is the official link to install Xcode: https://apps.apple.com/us/app/xcode/id497799835?mt=12
+### 3. Open the project in Xcode
+- Navigate to the folder that you cloned the application in.
+- Double-click the project to open it.
+### 4. Select a simulator.
+- At the top of Xcode, choose which simulator (iPhone) you want to run the application on.
+### 5. Run the project!
+- Press Command+R, or click the "Run" button in Xcode's top left corner. 
