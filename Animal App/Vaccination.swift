@@ -68,6 +68,7 @@ struct VaccinationsView: View {
                     onSave: addVaccination
                 )
             }
+            .id(selectedPet?.id)
             .sheet(item: $showingEditVaccination) { record in
                 AddEditVaccinationView(vaccinationRecord: record, selectedPet: selectedPet, onSave: updateVaccination)
             }
@@ -75,7 +76,7 @@ struct VaccinationsView: View {
                 loadSelectedPet()
                 loadVaccinationRecords()
             }
-            .onChange(of: selectedPetId) { _ in
+            .onChange(of: selectedPetId) {
                 loadSelectedPet()
                 loadVaccinationRecords()
             }
@@ -169,19 +170,12 @@ struct VaccinationsView: View {
         saveVaccinationRecords()
     }
     func saveVaccinationRecords() {
-        var allRecords: [VaccinationRecord] = []
+        guard let pet = selectedPet else {return}
         
-        if let data = UserDefaults.standard.data(forKey: "vaccinationRecords"),
-           let decoded = try? JSONDecoder().decode([VaccinationRecord].self, from: data) {
-            allRecords = decoded
-        }
+        let key = "vaccinationRecords_\(pet.id.uuidString)"
         
-        if let pet = selectedPet {
-            allRecords.removeAll{$0.petID == pet.id}
-        }
-        allRecords.append(contentsOf: vaccinationRecords)
-        if let encoded = try? JSONEncoder().encode(allRecords) {
-            UserDefaults.standard.set(encoded, forKey: "vaccinationRecords")
+        if let encoded = try? JSONEncoder().encode(vaccinationRecords) {
+            UserDefaults.standard.set(encoded, forKey: key)
         }
     }
     
@@ -191,14 +185,19 @@ struct VaccinationsView: View {
         }
     }
     func loadVaccinationRecords() {
-        guard let data = UserDefaults.standard.data(forKey: "vaccinationRecords"),
-              let decoded = try? JSONDecoder().decode([VaccinationRecord].self, from: data)
-        else {return}
         guard let pet = selectedPet else {
             vaccinationRecords = []
             return
         }
-        vaccinationRecords = decoded.filter {$0.petID == pet.id}
+        let key = "vaccinationRecords_\(pet.id.uuidString)"
+        
+        if let data = UserDefaults.standard.data(forKey: key),
+           let decoded = try? JSONDecoder().decode([VaccinationRecord].self, from: data) {
+            vaccinationRecords = decoded
+        } else {
+            vaccinationRecords = []
+        }
+           
     }
 }
 
@@ -215,6 +214,7 @@ struct AddEditVaccinationView: View {
     @State private var administeredBy: String
     @State private var notes: String
     @State private var showNextDueDate = false
+    @State private var selectedVaccineFromPicker: String = ""
     
     let commonVaccines = [
         "Rabies", "DHPP (Distemper)", "Bordetella (Kennel Cough)",
@@ -246,10 +246,15 @@ struct AddEditVaccinationView: View {
         NavigationView {
             Form {
                 Section(header: Text("Vaccine Information")) {
-                    Picker("Vaccine", selection: $vaccineName) {
+                    Picker("Vaccine", selection: $selectedVaccineFromPicker) {
                         Text("Select a vaccine").tag("")
                         ForEach(commonVaccines, id: \.self) { vaccine in
                             Text(vaccine).tag(vaccine)
+                        }
+                    }
+                    .onChange(of: selectedVaccineFromPicker) { newValue in
+                        if !newValue.isEmpty {
+                            vaccineName = newValue
                         }
                     }
                     TextField("Or enter custom vaccine name", text: $vaccineName)
@@ -289,9 +294,10 @@ struct AddEditVaccinationView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
+                        guard let selectedPet else {return}
                         let record = VaccinationRecord(
                             id: recordID,
-                            petID: selectedPet?.id ?? UUID(),
+                            petID: selectedPet.id,
                             vaccineName: vaccineName,
                             dateAdministered: dateAdministered,
                             nextDueDate: showNextDueDate ? nextDueDate : nil,
@@ -301,6 +307,7 @@ struct AddEditVaccinationView: View {
                         onSave(record)
                         dismiss()
                     }
+                    .disabled(selectedPet == nil)
                     .disabled(vaccineName.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
@@ -430,7 +437,7 @@ struct EmptyVaccinationsView: View {
         VStack(spacing: 25) {
             Spacer()
             
-            Image(systemName: "syringe.circle.fill")
+            Image(systemName: "syringe.fill")
                 .font(.system(size: 80))
                 .foregroundColor(.gray)
             VStack(spacing: 12) {

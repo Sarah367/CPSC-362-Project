@@ -506,7 +506,11 @@ struct PetsView: View {
                 }
             }
             .navigationBarHidden(true)
-            .onAppear{ loadPets()}
+            .onAppear{
+                loadPets()
+                UserDefaults.standard.removeObject(forKey: "savedPhotos")
+                    print("🔥 Cleared savedPhotos permanently")
+            }
             .sheet(isPresented: $showingAddPet) {
                 AddPetView(
                     petName: $newPetName,
@@ -1478,7 +1482,7 @@ struct HealthView: View {
                                      .foregroundColor(.black)
     // Progess Button -------------------------------------------------------
                                 NavigationLink {
-                                        ProgressCheck()
+                                        WeightTracker()
                                     } label: {
                                         Image(systemName: "chart.bar.fill")
                                             .resizable().frame(width:20, height:20)

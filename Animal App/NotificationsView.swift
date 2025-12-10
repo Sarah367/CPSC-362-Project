@@ -82,82 +82,85 @@ struct NotificationsView: View {
     
     // Main notification view
     private var NotificationSchedulerView: some View {
-        ScrollView {
-            VStack(spacing: 25) {
-                // new notif card
-                GroupBox {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Create New Reminder")
-                            .font(.headline)
-                        TextField("Reminder title...", text: $notificationTitle)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                        DatePicker("Date & Time", selection: $selectedDate, in: Date()...)
-                            .datePickerStyle(CompactDatePickerStyle())
-                        
-                        HStack {
-                            Text("Repeat")
-                            Spacer()
-                            Picker("Recurrence", selection: $selectedRecurrence) {
-                                ForEach(Recurrence.allCases, id: \.self) { recurrence in
-                                    Text(recurrence.rawValue).tag(recurrence)
-                                }
-                            }
-                            .pickerStyle(MenuPickerStyle())
-                        }
-                        Button(action: scheduleNotification) {
-                            HStack {
-                                Image(systemName: "bell.fill")
-                                Text("Schedule Reminder")
-                                    .fontWeight(.semibold)
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(Color.orange)
-                            .cornerRadius(10)
-                        }
-                        .disabled(notificationTitle.trimmingCharacters(in: .whitespaces).isEmpty)
-                        .opacity(notificationTitle.trimmingCharacters(in: .whitespaces).isEmpty ? 0.6 : 1.0)
-                    }
-                    .padding(.vertical, 8)
-                }
-                if scheduledNotifications.isEmpty {
-                    EmptyNotificationsView()
-                } else {
+        ZStack {
+            Color(.systemGray6).ignoresSafeArea()
+            ScrollView {
+                VStack(spacing: 25) {
+                    // new notif card
                     GroupBox {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Image(systemName: "list.bullet")
-                                    .foregroundColor(.orange)
-                                    .font(.title3)
-                                
-                                Text("Scheduled Reminders")
-                                    .font(.headline)
-                                Spacer()
-                                
-                                Text("\(scheduledNotifications.count)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .padding(6)
-                                    .background(Color.orange.opacity(0.2))
-                                    .cornerRadius(8)
-                            }
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Create New Reminder")
+                                .font(.headline)
+                            TextField("Reminder title...", text: $notificationTitle)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                            DatePicker("Date & Time", selection: $selectedDate, in: Date()...)
+                                .datePickerStyle(CompactDatePickerStyle())
                             
-                            LazyVStack(spacing: 12) {
-                                ForEach(scheduledNotifications) { notification in
-                                    EnhancedNotificationRow(
-                                        notification: notification,
-                                        onDelete: removeNotification
-                                    )
-                                    
+                            HStack {
+                                Text("Repeat")
+                                Spacer()
+                                Picker("Recurrence", selection: $selectedRecurrence) {
+                                    ForEach(Recurrence.allCases, id: \.self) { recurrence in
+                                        Text(recurrence.rawValue).tag(recurrence)
+                                    }
                                 }
+                                .pickerStyle(MenuPickerStyle())
                             }
+                            Button(action: scheduleNotification) {
+                                HStack {
+                                    Image(systemName: "bell.fill")
+                                    Text("Schedule Reminder")
+                                        .fontWeight(.semibold)
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(Color.orange)
+                                .cornerRadius(10)
+                            }
+                            .disabled(notificationTitle.trimmingCharacters(in: .whitespaces).isEmpty)
+                            .opacity(notificationTitle.trimmingCharacters(in: .whitespaces).isEmpty ? 0.6 : 1.0)
                         }
                         .padding(.vertical, 8)
                     }
+                    if scheduledNotifications.isEmpty {
+                        EmptyNotificationsView()
+                    } else {
+                        GroupBox {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Image(systemName: "list.bullet")
+                                        .foregroundColor(.orange)
+                                        .font(.title3)
+                                    
+                                    Text("Scheduled Reminders")
+                                        .font(.headline)
+                                    Spacer()
+                                    
+                                    Text("\(scheduledNotifications.count)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .padding(6)
+                                        .background(Color.orange.opacity(0.2))
+                                        .cornerRadius(8)
+                                }
+                                
+                                LazyVStack(spacing: 12) {
+                                    ForEach(scheduledNotifications) { notification in
+                                        EnhancedNotificationRow(
+                                            notification: notification,
+                                            onDelete: removeNotification
+                                        )
+                                        
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 8)
+                        }
+                    }
                 }
+                .padding()
             }
-            .padding()
         }
     }
     

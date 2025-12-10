@@ -1,16 +1,21 @@
 import SwiftUI
 import Charts
 
-struct ProgressEntry: Identifiable, Codable {
-    let id = UUID()
+struct WeightEntry: Identifiable, Codable {    
+    let id: UUID
+    let petID: UUID
     var date: Date
     var weight: Double
     var notes: String
 }
 
-struct ProgressCheck: View {
-    @State private var entries: [ProgressEntry] = []
+struct WeightTracker: View {
+    @State private var entries: [WeightEntry] = []
     @State private var showingAddEntry = false
+    @AppStorage("selectedPetId") private var selectedPetId: String = ""
+    @AppStorage("savedPets") private var savedPetsData: Data = Data()
+    @State private var selectedPet: Pet?
+    
     var body: some View {
         NavigationView {
             VStack {
@@ -65,20 +70,54 @@ struct ProgressCheck: View {
                 }
             }
             .sheet(isPresented: $showingAddEntry) {
-                AddProgressEntryView { newEntry in
+                AddWeightEntryView(selectedPet: $selectedPet) { newEntry in
                     entries.append(newEntry)
+                    saveEntries()
                 }
             }
+            .onAppear() {
+                loadSelectedPet()
+                loadEntries()
+            }
+            .onChange(of: selectedPetId) {
+                loadSelectedPet()
+                loadEntries()
+            }
+        }
+    }
+    
+    func keyForPet() -> String {
+        selectedPet.map { "weightEntries_\($0.id.uuidString)"} ?? ""
+    }
+    func saveEntries() {
+        guard !keyForPet().isEmpty else { return }
+        if let encoded = try? JSONEncoder().encode(entries) {
+            UserDefaults.standard.set(encoded, forKey: keyForPet())
+        }
+    }
+    func loadEntries() {
+        guard !keyForPet().isEmpty else { return }
+        if let data = UserDefaults.standard.data(forKey: keyForPet()),
+           let decoded = try? JSONDecoder().decode([WeightEntry].self, from: data) {
+            entries = decoded
+        } else {
+            entries = []
+        }
+    }
+    func loadSelectedPet() {
+        if let decoded = try? JSONDecoder().decode([Pet].self, from: savedPetsData) {
+            selectedPet = decoded.first {$0.id.uuidString == selectedPetId}
         }
     }
 }
 
-struct AddProgressEntryView: View {
+struct AddWeightEntryView: View {
     @Environment(\.dismiss) var dismiss
+    //@Environment(\.selectedPet) var selectedPet
+    @Binding var selectedPet: Pet?
+    let onSave: (WeightEntry) -> Void
     @State private var weight = ""
     @State private var notes = ""
-    
-    let onSave: (ProgressEntry) -> Void
     
     var body: some View {
         NavigationView {
@@ -91,8 +130,16 @@ struct AddProgressEntryView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
+                        guard let pet = selectedPet else {return}
                         if let w = Double(weight) {
-                            onSave(ProgressEntry(date: Date(), weight: w, notes: notes))
+                            let entry = WeightEntry(
+                                id: UUID(),
+                                petID: pet.id,
+                                date: Date(),
+                                weight: w,
+                                notes: notes
+                            )
+                            onSave(entry)
                         }
                         dismiss()
                     }
@@ -107,5 +154,5 @@ struct AddProgressEntryView: View {
     }
 }
 #Preview {
-    ProgressCheck()
+    WeightTracker()
 }

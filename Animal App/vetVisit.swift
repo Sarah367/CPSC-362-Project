@@ -14,6 +14,9 @@ struct VetVisit: View {
     @State private var taskBeingEdited: String = ""
     @State private var editingIndex: Int? = nil
     @State private var showEditSheet = false
+    @AppStorage("selectedPetId") private var selectedPetId: String = ""
+    @AppStorage("savedPets") private var savedPetsData: Data = Data()
+    @State private var selectedPet: Pet?
     
     private let defaultsKey = "tasksByDate" // key to save in UserDefaults
     
@@ -81,10 +84,15 @@ struct VetVisit: View {
             }
         }
         .onAppear {
-            loadTasks()
+            loadSelectedPet()
+            loadVetVisits()
             if selectedDate == nil {
                 selectedDate = Date()
             }
+        }
+        .onChange(of: selectedPetId) {
+            loadSelectedPet()
+            loadVetVisits()
         }
         .sheet(isPresented: $showEditSheet) {
             NavigationView {
@@ -99,7 +107,7 @@ struct VetVisit: View {
                                let date = selectedDate {
                                 let key = formatDate(date)
                                 tasksByDate[key]?[idx] = taskBeingEdited
-                                saveTasks()
+                                saveVetVisits()
                             }
                             showEditSheet = false
                         }
@@ -115,6 +123,11 @@ struct VetVisit: View {
     }
     
     // MARK: - Functions
+    func loadSelectedPet() {
+        if let decoded = try? JSONDecoder().decode([Pet].self, from: savedPetsData) {
+            selectedPet = decoded.first { $0.id.uuidString == selectedPetId }
+        }
+    }
     
     func addTask(for dateKey: String) {
         let trimmedTask = newTask.trimmingCharacters(in: .whitespaces)
@@ -126,13 +139,13 @@ struct VetVisit: View {
             tasksByDate[dateKey] = [trimmedTask]
         }
 
-        saveTasks()
+        saveVetVisits()
         newTask = "" // clear input
     }
     
     func deleteTask(at offsets: IndexSet, for dateKey: String) {
         tasksByDate[dateKey]?.remove(atOffsets: offsets)
-        saveTasks()
+        saveVetVisits()
     }
     
     func formatDate(_ date: Date) -> String {
@@ -141,16 +154,33 @@ struct VetVisit: View {
         return formatter.string(from: date)
     }
     
-    func saveTasks() {
-        if let data = try? JSONEncoder().encode(tasksByDate) {
-            UserDefaults.standard.set(data, forKey: defaultsKey)
+//    func saveTasks() {
+//        if let data = try? JSONEncoder().encode(tasksByDate) {
+//            UserDefaults.standard.set(data, forKey: defaultsKey)
+//        }
+//    }
+    
+    func loadVetVisits() {
+        guard let pet = selectedPet else {
+            tasksByDate = [:]
+            return
+        }
+        let key = "vetVisits_\(pet.id.uuidString)"
+        if let data = UserDefaults.standard.data(forKey: key),
+           let decoded = try? JSONDecoder().decode([String: [String]].self, from: data) {
+            tasksByDate = decoded
+        } else {
+            tasksByDate = [:]
         }
     }
     
-    func loadTasks() {
-        if let data = UserDefaults.standard.data(forKey: defaultsKey),
-           let decoded = try? JSONDecoder().decode([String: [String]].self, from: data) {
-            tasksByDate = decoded
+    
+    func saveVetVisits() {
+        guard let pet = selectedPet else {return}
+        
+        let key = "vetVisits_\(pet.id.uuidString)"
+        if let encoded = try? JSONEncoder().encode(tasksByDate) {
+            UserDefaults.standard.set(encoded, forKey: key)
         }
     }
 }

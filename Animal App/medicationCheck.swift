@@ -19,9 +19,6 @@ import SwiftUI
 struct MedicationItem: Identifiable, Codable {
     let id: UUID
     let petID: UUID
-    var name: String
-    var breed: String
-    var age: Double
     var medication: String
     var duration: String
 }
@@ -29,9 +26,6 @@ struct MedicationItem: Identifiable, Codable {
 struct MedicationCheck: View {
     @State private var medications: [MedicationItem] = []
     
-    @State private var newName = ""
-    @State private var newBreed = ""
-    @State private var newAge = 0.0
     @State private var newMedication = ""
     @State private var newDuration = ""
     
@@ -62,14 +56,6 @@ struct MedicationCheck: View {
                     .foregroundColor(.red)
                     .padding()
             }
-            HStack {
-                TextField("Name", text: $newName)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                TextField("Breed", text: $newBreed)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                TextField("Age", value: $newAge, formatter: numberFormatter)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-            }
             
             TextField("Medication Name", text: $newMedication)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -90,12 +76,7 @@ struct MedicationCheck: View {
                 ForEach(medications) { med in
                     GroupBox {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Pet Medication")
-                                .font(.headline)
                             
-                            Text("Name: \(med.name)")
-                            Text("Breed: \(med.breed)")
-                            Text("Age: \(med.age, specifier: "%.0f")")
                             Text("Medication: \(med.medication)")
                             Text("Duration: \(med.duration)")
                             
@@ -113,6 +94,13 @@ struct MedicationCheck: View {
                     .padding(.horizontal)
                 }
             }
+//            Button("RESET MEDS") {
+//                UserDefaults.standard.removeObject(forKey: "medications")
+//                medications = []
+//            }
+//            .buttonStyle(.bordered)
+//            .tint(.red)
+//            .padding(.top, 10)
         }
         .padding()
         .onAppear {
@@ -136,18 +124,12 @@ struct MedicationCheck: View {
         let item = MedicationItem(
             id: UUID(),
             petID: pet.id,
-            name: newName,
-            breed: newBreed,
-            age: newAge,
             medication: newMedication,
             duration: newDuration
         )
         medications.append(item)
         saveMedications()
-        
-        newName = ""
-        newBreed = ""
-        newAge = 0
+
         newMedication = ""
         newDuration = ""
     }
@@ -187,6 +169,7 @@ struct MedicationCheck: View {
 }
 
 struct EditMedicationView: View {
+    @Environment(\.dismiss) private var dismiss
     @State var med: MedicationItem
     var onSave: (MedicationItem) -> Void
     
@@ -195,18 +178,19 @@ struct EditMedicationView: View {
     var body: some View {
         NavigationView {
             Form {
-                TextField("Name", text: $med.name)
-                TextField("Breed", text: $med.breed)
-                TextField("Age", value: $med.age, formatter: numberFormatter)
                 TextField("Medication", text: $med.medication)
                 TextField("Duration", text: $med.duration)
             }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {onSave(med)}
+                    Button("Save") {
+                        onSave(med)
+                        dismiss()
+                    }
+                    
                 }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {}
+                    Button("Cancel") {dismiss()}
                 }
             }
         }
